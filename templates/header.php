@@ -17,25 +17,31 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="index.php">Inicio</a>
-                    </li>
-                    <?php if(isset($_SESSION['user_id'])): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="admin/dashboard.php">Mi Panel</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="auth/logout.php">Cerrar Sesión</a>
-                        </li>
-                    <?php else: ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="auth/login.php">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="auth/register.php">Registrarse</a>
-                        </li>
-                    <?php endif; ?>
-                </ul>
+    <li class="nav-item">
+        <a class="nav-link" href="index.php">Inicio</a>
+    </li>
+    <?php if(isset($_SESSION['user_id'])): ?>
+        <?php if(isset($_SESSION['user_role']) && $_SESSION['user_role'] == 'admin'): ?>
+            <li class="nav-item">
+                <a class="nav-link fw-bold" href="admin/dashboard.php">📊 Admin</a>
+            </li>
+        <?php else: ?>
+            <li class="nav-item">
+                <a class="nav-link fw-bold" href="user/dashboard.php">👤 Mi Panel</a>
+            </li>
+        <?php endif; ?>
+        <li class="nav-item">
+            <a class="nav-link" href="auth/logout.php">Cerrar Sesión</a>
+        </li>
+    <?php else: ?>
+        <li class="nav-item">
+            <a class="nav-link" href="auth/login.php">Login</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="auth/register.php">Registrarse</a>
+        </li>
+    <?php endif; ?>
+</ul>
             </div>
         </div>
     </nav>
