@@ -23,10 +23,10 @@ $empresas = $stmt->fetchAll();
             <div class="col-md-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h5 class="card-title"><?= $emp['nombre'] ?></h5>
-                        <span class="badge bg-secondary"><?= $emp['categoria'] ?></span>
-                        <p class="card-text mt-2"><?= substr($emp['descripcion'], 0, 100) ?>...</p>
-                        <a href="empresa.php?id=<?= $emp['id'] ?>" class="btn btn-sm btn-primary">Ver详情</a>
+                        <h5 class="card-title"><?= htmlspecialchars($emp['nombre']) ?></h5>
+                        <span class="badge bg-secondary"><?= htmlspecialchars($emp['categoria']) ?></span>
+                        <p class="card-text mt-2"><?= htmlspecialchars(substr($emp['descripcion'], 0, 100)) ?>...</p>
+                        <a href="<?= $base_url ?>/empresa.php?id=<?= $emp['id'] ?>" class="btn btn-sm btn-primary">Ver detalles</a>
                     </div>
                 </div>
             </div>

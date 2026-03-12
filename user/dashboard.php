@@ -1,10 +1,12 @@
 <?php
 session_start();
 require '../config/db.php';
+require_once '../config/csrf.php';
 
 // Verificar que esté logueado
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../auth/login.php");
+    if (!isset($base_url)) $base_url = '..';
+    header("Location: " . $base_url . "/auth/login.php");
     exit;
 }
 
@@ -22,7 +24,7 @@ include '../templates/header.php';
 ?>
 
 <h1>Mi Panel de Usuario</h1>
-<p>Bienvenido, <?= $_SESSION['user_name'] ?></p>
+<p>Bienvenido, <?= htmlspecialchars($_SESSION['user_name']) ?></p>
 
 <div class="row mt-4">
     <!-- Mis Empresas -->
@@ -44,7 +46,7 @@ include '../templates/header.php';
                         <tbody>
                             <?php foreach($mis_empresas as $emp): ?>
                                 <tr>
-                                    <td><?= $emp['nombre'] ?></td>
+                                    <td><?= htmlspecialchars($emp['nombre']) ?></td>
                                     <td>
                                         <?php if($emp['aprobada']): ?>
                                             <span class="badge bg-success">✅ Aprobada</span>
@@ -53,8 +55,13 @@ include '../templates/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="editar_empresa.php?id=<?= $emp['id'] ?>" class="btn btn-sm btn-primary">Editar</a>
-                                        <a href="eliminar_empresa.php?id=<?= $emp['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                                        <?php if (!isset($base_url)) $base_url = '..'; ?>
+                                        <a href="<?= $base_url ?>/user/editar_empresa.php?id=<?= $emp['id'] ?>" class="btn btn-sm btn-primary">Editar</a>
+                                        <form method="POST" action="<?= $base_url ?>/user/eliminar_empresa.php" style="display:inline" onsubmit="return confirm('¿Eliminar?')">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+                                            <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -74,7 +81,9 @@ include '../templates/header.php';
                 <h5>➕ Agregar Empresa</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="crear_empresa.php">
+                <?php if (!isset($base_url)) $base_url = '..'; ?>
+                <form method="POST" action="<?= $base_url ?>/user/crear_empresa.php" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
                     <div class="mb-2">
                         <label class="form-label">Nombre</label>
                         <input type="text" name="nombre" class="form-control" required>
@@ -107,6 +116,10 @@ include '../templates/header.php';
                     <div class="mb-3">
                         <label class="form-label">Website</label>
                         <input type="text" name="website" class="form-control" placeholder="https://...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Logo (opcional)</label>
+                        <input type="file" name="logo" class="form-control" accept="image/*">
                     </div>
                     <button type="submit" class="btn btn-success w-100">Enviar para Aprobación</button>
                 </form>

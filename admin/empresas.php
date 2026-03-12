@@ -1,6 +1,6 @@
 <?php
-session_start();
 require '../config/db.php';
+require_once '../config/csrf.php';
 
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] != 'admin') {
     die("Acceso denegado");
@@ -8,28 +8,46 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] != 'admin') {
 
 $msg = '';
 
-// Aprobar empresa
-if (isset($_GET['aprobar'])) {
-    $id = $_GET['aprobar'];
-    $stmt = $pdo->prepare("UPDATE empresas SET aprobada = 1 WHERE id = ?");
-    $stmt->execute([$id]);
-    $msg = "✅ Empresa aprobada";
-}
-
-// Rechazar empresa
-if (isset($_GET['rechazar'])) {
-    $id = $_GET['rechazar'];
-    $stmt = $pdo->prepare("DELETE FROM empresas WHERE id = ?");
-    $stmt->execute([$id]);
-    $msg = "❌ Empresa rechazada y eliminada";
-}
-
-// Eliminar empresa
-if (isset($_GET['eliminar'])) {
-    $id = $_GET['eliminar'];
-    $stmt = $pdo->prepare("DELETE FROM empresas WHERE id = ?");
-    $stmt->execute([$id]);
-    $msg = "✅ Empresa eliminada";
+// Manejar acciones por POST (aprobar, rechazar, eliminar)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    if ($action) {
+        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $token = $_POST['csrf_token'] ?? '';
+        if (!csrf_validate($token)) {
+            $msg = "❌ Token CSRF inválido";
+        } else {
+            if ($action === 'aprobar' && $id) {
+                $stmt = $pdo->prepare("UPDATE empresas SET aprobada = 1 WHERE id = ?");
+                $stmt->execute([$id]);
+                $msg = "✅ Empresa aprobada";
+            } elseif ($action === 'rechazar' && $id) {
+                // eliminar logo si existe
+                $s = $pdo->prepare("SELECT logo FROM empresas WHERE id = ?");
+                $s->execute([$id]);
+                $r = $s->fetch();
+                if ($r && !empty($r['logo'])) {
+                    $file = __DIR__ . '/../uploads/logos/' . $r['logo'];
+                    if (is_file($file)) @unlink($file);
+                }
+                $stmt = $pdo->prepare("DELETE FROM empresas WHERE id = ?");
+                $stmt->execute([$id]);
+                $msg = "❌ Empresa rechazada y eliminada";
+            } elseif ($action === 'eliminar' && $id) {
+                // eliminar logo si existe
+                $s = $pdo->prepare("SELECT logo FROM empresas WHERE id = ?");
+                $s->execute([$id]);
+                $r = $s->fetch();
+                if ($r && !empty($r['logo'])) {
+                    $file = __DIR__ . '/../uploads/logos/' . $r['logo'];
+                    if (is_file($file)) @unlink($file);
+                }
+                $stmt = $pdo->prepare("DELETE FROM empresas WHERE id = ?");
+                $stmt->execute([$id]);
+                $msg = "✅ Empresa eliminada";
+            }
+        }
+    }
 }
 
 // Obtener empresas con categoría
@@ -44,26 +62,40 @@ $categorias = $pdo->query("SELECT * FROM categorias ORDER BY nombre")->fetchAll(
 
 // Agregar empresa (solo admin)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['agregar'])) {
-    $nombre = $_POST['nombre'];
-    $descripcion = $_POST['descripcion'];
-    $categoria_id = $_POST['categoria_id'];
-    $direccion = $_POST['direccion'];
-    $telefono = $_POST['telefono'];
-    $email = $_POST['email'];
-    $website = $_POST['website'];
-    
-    // Las empresas del admin van aprobadas directamente
-    $stmt = $pdo->prepare("INSERT INTO empresas (nombre, descripcion, categoria_id, direccion, telefono, email, website, aprobada) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-    $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website]);
-    $msg = "✅ Empresa agregada por el admin";
+    $token = $_POST['csrf_token'] ?? '';
+    if (!csrf_validate($token)) {
+        $msg = "❌ Token CSRF inválido";
+    } else {
+        $nombre = trim($_POST['nombre']);
+        $descripcion = trim($_POST['descripcion']);
+        $categoria_id = (int)($_POST['categoria_id'] ?? 0);
+        $direccion = trim($_POST['direccion']);
+        $telefono = trim($_POST['telefono']);
+        $email = trim($_POST['email']);
+        $website = trim($_POST['website']);
+
+        // Validar email y website
+        if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $msg = "❌ Email no válido";
+        } elseif ($website && !filter_var($website, FILTER_VALIDATE_URL)) {
+            $msg = "❌ Website no válido";
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO empresas (nombre, descripcion, categoria_id, direccion, telefono, email, website, aprobada) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
+            $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website]);
+            $msg = "✅ Empresa agregada por el admin";
+        }
+    }
 }
 
 include '../templates/header.php';
 ?>
 
-<h1>Gestión de Empresas</h1>
+<div class="row">
+    <?php include 'sidebar.php'; ?>
+    <div class="col-lg-9">
+        <h1>Gestión de Empresas</h1>
 
-<?php if($msg): ?>
+        <?php if($msg): ?>
     <div class="alert alert-success"><?= $msg ?></div>
 <?php endif; ?>
 
@@ -92,10 +124,20 @@ if (count($pendientes) > 0):
                         <td><?= $emp['nombre'] ?></td>
                         <td><?= $emp['categoria_nombre'] ?? 'Sin categoría' ?></td>
                         <td><?= $emp['usuario_nombre'] ?? 'Sin usuario' ?></td>
-                        <td>
-                            <a href="?aprobar=<?= $emp['id'] ?>" class="btn btn-success btn-sm">✅ Aprobar</a>
-                            <a href="?rechazar=<?= $emp['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Rechazar y eliminar?')">❌ Rechazar</a>
-                        </td>
+                            <td>
+                                <form method="POST" style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+                                    <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                                    <input type="hidden" name="action" value="aprobar">
+                                    <button type="submit" class="btn btn-success btn-sm">✅ Aprobar</button>
+                                </form>
+                                <form method="POST" style="display:inline" onsubmit="return confirm('¿Rechazar y eliminar?')">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+                                    <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                                    <input type="hidden" name="action" value="rechazar">
+                                    <button type="submit" class="btn btn-danger btn-sm">❌ Rechazar</button>
+                                </form>
+                            </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -111,6 +153,7 @@ if (count($pendientes) > 0):
     </div>
     <div class="card-body">
         <form method="POST" class="row g-3">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
             <div class="col-md-6">
                 <label class="form-label">Nombre</label>
                 <input type="text" name="nombre" class="form-control" required>
@@ -177,8 +220,13 @@ if (count($pendientes) > 0):
                 <td><?= $emp['usuario_nombre'] ?? 'Admin' ?></td>
                 <td><?= $emp['telefono'] ?? '-' ?></td>
                 <td>
-                    <a href="?eliminar=<?= $emp['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta empresa?')">Eliminar</a>
-                </td>
+                            <form method="POST" style="display:inline" onsubmit="return confirm('¿Eliminar esta empresa?')">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+                                <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                                <input type="hidden" name="action" value="eliminar">
+                                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                            </form>
+                        </td>
             </tr>
         <?php endforeach; ?>
     </tbody>
@@ -188,6 +236,10 @@ if (count($pendientes) > 0):
     <div class="alert alert-warning">No hay empresas aprobadas.</div>
 <?php endif; ?>
 
-<a href="dashboard.php" class="btn btn-secondary">← Volver al Panel</a>
+<?php if (!isset($base_url)) $base_url = '..'; ?>
+<a href="<?= $base_url ?>/admin/dashboard.php" class="btn btn-secondary">← Volver al Panel</a>
+
+    </div>
+</div>
 
 <?php include '../templates/footer.php'; ?>

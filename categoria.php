@@ -20,27 +20,29 @@ $stmt->execute([$id]);
 $empresas = $stmt->fetchAll();
 ?>
 
-<h1 class="my-4"><?= $categoria['nombre'] ?></h1>
+<h1 class="my-4"><?= htmlspecialchars($categoria['nombre']) ?></h1>
 <p>Empresas encontradas: <?= count($empresas) ?></p>
 
 <?php if(count($empresas) > 0): ?>
     <div class="row">
+        <?php if (!isset($base_url)) $base_url = ''; ?>
         <?php foreach($empresas as $emp): ?>
             <div class="col-md-4 mb-4">
                 <div class="card h-100 shadow-sm">
                     <?php if($emp['logo']): ?>
-                        <img src="uploads/logos/<?= $emp['logo'] ?>" class="card-img-top p-3" style="max-height: 150px; object-fit: contain;" alt="<?= $emp['nombre'] ?>">
+                        <?php if (!isset($base_url)) $base_url = ''; ?>
+                        <img src="<?= $base_url ?>/uploads/logos/<?= $emp['logo'] ?>" class="card-img-top p-3" style="max-height: 150px; object-fit: contain;" alt="<?= $emp['nombre'] ?>">
                     <?php endif; ?>
                     <div class="card-body">
-                        <h5 class="card-title"><?= $emp['nombre'] ?></h5>
-                        <p class="card-text text-muted"><?= substr($emp['descripcion'], 0, 80) ?>...</p>
+                        <h5 class="card-title"><?= htmlspecialchars($emp['nombre']) ?></h5>
+                    <p class="card-text text-muted"><?= htmlspecialchars(substr($emp['descripcion'], 0, 80)) ?>...</p>
                         <?php if($emp['telefono']): ?>
                             <p class="mb-1"><small>📞 <?= $emp['telefono'] ?></small></p>
                         <?php endif; ?>
                         <?php if($emp['direccion']): ?>
                             <p class="mb-1"><small>📍 <?= $emp['direccion'] ?></small></p>
                         <?php endif; ?>
-                        <a href="empresa.php?id=<?= $emp['id'] ?>" class="btn btn-primary btn-sm mt-2">Ver Detalles</a>
+                        <a href="<?= $base_url ?>/empresa.php?id=<?= $emp['id'] ?>" class="btn btn-primary btn-sm mt-2">Ver Detalles</a>
                     </div>
                 </div>
             </div>
@@ -50,6 +52,6 @@ $empresas = $stmt->fetchAll();
     <div class="alert alert-info">No hay empresas en esta categoría todavía.</div>
 <?php endif; ?>
 
-<a href="index.php" class="btn btn-secondary">← Volver al inicio</a>
+<a href="<?= $base_url ?>/index.php" class="btn btn-secondary">← Volver al inicio</a>
 
 <?php include 'templates/footer.php'; ?>

@@ -1,0 +1,10 @@
+# Disable directory listing and prevent execution of PHP in uploads
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar)$">
+    Require all denied
+</FilesMatch>
+
+# Deny access to htaccess itself
+<Files ".htaccess">
+    Require all denied
+</Files>

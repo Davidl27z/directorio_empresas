@@ -14,8 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['user_name'] = $user['nombre'];
         $_SESSION['user_role'] = $user['rol'];
-        
-        header("Location: ../index.php");
+
+        // Previene session fixation
+        session_regenerate_id(true);
+
+        if (!isset($base_url)) $base_url = '..';
+        header("Location: " . $base_url . "/index.php");
         exit;
     } else {
         $error = "Credenciales incorrectas";
@@ -44,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <button type="submit" class="btn btn-primary w-100">Entrar</button>
                 </form>
                 <p class="mt-3 text-center">
-                    ¿No tienes cuenta? <a href="register.php">Regístrate</a>
+                    <?php if (!isset($base_url)) $base_url = '..'; ?>
+                    ¿No tienes cuenta? <a href="<?= $base_url ?>/auth/register.php">Regístrate</a>
                 </p>
             </div>
         </div>

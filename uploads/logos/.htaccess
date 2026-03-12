@@ -1,0 +1,9 @@
+# Prevent execution and listing in this uploads folder
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar)$">
+    Require all denied
+</FilesMatch>
+
+<Files ".htaccess">
+    Require all denied
+</Files>

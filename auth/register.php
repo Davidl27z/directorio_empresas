@@ -9,11 +9,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nombre = $_POST['nombre'];
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+
+    // Si no hay usuarios aún, el primer registro se convierte en admin
+    $isFirstUser = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() == 0;
+    $rol = $isFirstUser ? 'admin' : 'user';
     
     try {
-        $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)");
-        $stmt->execute([$nombre, $email, $password]);
+        $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$nombre, $email, $password, $rol]);
         $success = "¡Registro exitoso! <a href='login.php'>Inicia sesión</a>";
+        if ($rol === 'admin') {
+            $success .= " (Primer usuario creado como administrador)";
+        }
     } catch (PDOException $e) {
         $error = "El correo ya está registrado.";
     }
