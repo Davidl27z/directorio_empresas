@@ -2,6 +2,12 @@
 session_start();
 header('Content-Type: text/html; charset=utf-8');
 require 'config/db.php';
+
+// SEO Variables
+$page_title = 'Directorio de Empresas - Encuentra la mejor empresa';
+$page_description = 'Explora nuestro directorio de empresas locales y encuentra servicios cerca de ti.';
+$page_keywords = 'directorio empresas, servicios locales, encontrar empresas';
+
 include 'templates/header.php';
 ?>
 <?php

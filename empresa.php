@@ -17,6 +17,13 @@ $empresa = $stmt->fetch();
 if (!$empresa) {
     die("Empresa no encontrada");
 }
+
+// SEO Variables
+$page_title = htmlspecialchars($empresa['nombre']) . ' - Directorio de Empresas';
+$page_description = substr(htmlspecialchars($empresa['descripcion']), 0, 160);
+$page_keywords = htmlspecialchars($empresa['categoria_nombre']) . ', ' . htmlspecialchars($empresa['nombre']) . ', servicios locales';
+$og_image = $base_url . '/uploads/logos/' . $empresa['logo'];
+
 ?>
 
 <div class="row">

@@ -13,7 +13,16 @@ if (function_exists('mb_internal_encoding')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Directorio de Empresas</title>
+    <title><?php echo isset($page_title) ? htmlspecialchars($page_title) : 'Directorio de Empresas'; ?></title>
+    <meta name="description" content="<?php echo isset($page_description) ? htmlspecialchars($page_description) : 'Encuentra la mejor empresa en nuestro directorio de empresas locales.'; ?>">
+    <meta name="keywords" content="<?php echo isset($page_keywords) ? htmlspecialchars($page_keywords) : 'empresas, directorio, locales, servicios'; ?>">
+    <!-- Open Graph -->
+    <meta property="og:title" content="<?php echo isset($page_title) ? htmlspecialchars($page_title) : 'Directorio de Empresas'; ?>">
+    <meta property="og:description" content="<?php echo isset($page_description) ? htmlspecialchars($page_description) : 'Encuentra la mejor empresa en nuestro directorio de empresas locales.'; ?>">
+    <meta property="og:image" content="<?php echo isset($og_image) ? htmlspecialchars($og_image) : ''; ?>">
+    <meta property="og:url" content="<?php echo 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
+    <meta property="og:type" content="website">
+    <link rel="canonical" href="<?php echo 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
     <!-- Bootstrap CSS (local fallback) -->
     <link rel="stylesheet" href="<?= $base_url ?>/css/bootstrap.min.css">
     <?php

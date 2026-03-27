@@ -14,6 +14,11 @@ if (!$categoria) {
     die("Categoría no encontrada");
 }
 
+// SEO Variables
+$page_title = htmlspecialchars($categoria['nombre']) . ' - Directorio de Empresas';
+$page_description = 'Explora empresas en la categoría ' . htmlspecialchars($categoria['nombre']) . '. Encuentra servicios locales en nuestro directorio.';
+$page_keywords = htmlspecialchars($categoria['nombre']) . ', empresas, directorio, servicios';
+
 // Obtener empresas de esa categoría
 $stmt = $pdo->prepare("SELECT * FROM empresas WHERE categoria_id = ? ORDER BY nombre");
 $stmt->execute([$id]);
