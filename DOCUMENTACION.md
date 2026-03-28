@@ -178,15 +178,31 @@ CREATE TABLE empresas (
 - `aprobada`: El admin debe aprobar las empresas antes de que sean visibles
 - `fecha_modificacion`: Se actualiza automáticamente cada vez que se edita
 
-### 3.3 Relaciones
+### 3.4 Roles de Usuario
 
-1. **Usuario → Empresa (1 a N)**
-   - Un usuario puede tener varias empresas
-   - Una empresa pertenece a exactamente un usuario
+El sistema cuenta con tres tipos de usuarios con diferentes permisos:
 
-2. **Categoría → Empresa (1 a N)**
-   - Una categoría contiene muchas empresas
-   - Una empresa pertenece a una categoría
+#### **CLIENTE** (`cliente`)
+- Puede explorar empresas y productos
+- Agregar productos al carrito (incluso sin login)
+- Hacer pedidos (requiere registro/login)
+- Ver historial de pedidos
+- Gestionar su perfil
+
+#### **EMPRESA** (`empresa`)  
+- Todas las funciones de cliente
+- Crear y gestionar empresas
+- Administrar catálogo de productos
+- Ver pedidos recibidos
+- Gestionar estado de pedidos
+- Contactar clientes
+
+#### **ADMIN** (`admin`)
+- Todas las funciones de empresa
+- Gestionar categorías
+- Aprobar/rechazar empresas
+- Gestionar usuarios
+- Acceso a estadísticas globales
 
 ---
 
@@ -397,31 +413,56 @@ Admin debe aprobar desde dashboard
 Una vez aprobada, aparece a todos los usuarios
 ```
 
-### 5.4 Flujo de Búsqueda
+### 5.5 Flujo de E-Commerce
 
 ```
-Usuario escribe "Restaurant" y presiona Buscar
+Usuario anónimo
         ↓
-buscar.php recibe parámetro GET: q=Restaurant
+Explora productos en empresa.php
         ↓
-LIKE SQL busca en nombre y descripción
+Agrega productos al carrito (sesión)
         ↓
-Muestra solo empresas con aprobada = TRUE
+Va a carrito.php
         ↓
-Resultados con paginación
+Hace clic "Hacer Pedido"
+        ↓
+Redirige a login.php (si no logueado)
+        ↓
+Después de login/registro → hacer_pedido.php
+        ↓
+Elige método de contacto
+        ↓
+Confirma pedido
+        ↓
+BD: pedidos + pedido_items
+        ↓
+Empresa ve pedido en dashboard
+        ↓
+Empresa contacta cliente por método elegido
+        ↓
+Cliente recibe productos/paga según acuerdo
 ```
 
 ---
 
 ## 6. Funcionalidades Principales
 
-### **Para Usuarios Normales:**
-- ✅ Registrarse y crear cuenta
-- ✅ Buscar empresas por palabra clave
-- ✅ Explorar por categorías
-- ✅ Ver detalles de empresa (contacto, info)
-- ✅ Crear sus propias empresas
-- ✅ Panel personal para editar/eliminar sus empresas
+### **Para Clientes:**
+- ✅ Registrarse como cliente
+- ✅ Explorar empresas y productos
+- ✅ Agregar productos al carrito (anónimo)
+- ✅ Hacer pedidos (requiere login)
+- ✅ Elegir método de contacto para pedidos
+- ✅ Ver historial de pedidos
+
+### **Para Empresas:**
+- ✅ Registrarse como empresa
+- ✅ Todas las funciones de cliente
+- ✅ Crear y gestionar empresas
+- ✅ Administrar catálogo de productos
+- ✅ Ver pedidos recibidos
+- ✅ Gestionar estado de pedidos
+- ✅ Contactar clientes por método elegido
 
 ### **Para Administradores:**
 - ✅ Dashboard con estadísticas (total empresas, usuarios, etc.)
@@ -714,4 +755,637 @@ Para indexar el sitio en Google Search Console:
 - **Creados:**
   - `sitemap.php` (sitemap XML dinámico)
   - `robots.txt` (configuración de bots)
+
+---
+
+## 12. E-Commerce Básico
+
+### 12.1 Introducción
+Se implementó un sistema de E-Commerce básico donde cada empresa puede tener su propio catálogo de productos. Los usuarios pueden agregar productos al carrito y hacer pedidos sin pago real, usando métodos de contacto para coordinación.
+
+### 12.2 Modelo de Datos
+**Nuevas tablas agregadas:**
+
+#### **PRODUCTOS**
+```sql
+CREATE TABLE productos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    precio DECIMAL(10,2) NOT NULL,
+    imagen VARCHAR(255),
+    empresa_id INT NOT NULL,
+    disponible BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
+);
+```
+
+#### **PEDIDOS**
+```sql
+CREATE TABLE pedidos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    usuario_id INT NOT NULL,
+    empresa_id INT NOT NULL,
+    total DECIMAL(10,2) NOT NULL,
+    metodo_contacto ENUM('whatsapp', 'formulario', 'correo') NOT NULL,
+    detalles_contacto TEXT,
+    notas TEXT,
+    estado ENUM('pendiente', 'procesando', 'completado', 'cancelado') DEFAULT 'pendiente',
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+    FOREIGN KEY (empresa_id) REFERENCES empresas(id)
+);
+```
+
+#### **PEDIDO_ITEMS**
+```sql
+CREATE TABLE pedido_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    pedido_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(id)
+);
+```
+
+### 12.3 Funcionalidades Implementadas
+
+#### **Para Propietarios de Empresas:**
+- ✅ Crear, editar, eliminar productos desde `user/productos.php`
+- ✅ Gestionar catálogo de productos con imágenes
+- ✅ Ver pedidos recibidos en `user/dashboard.php`
+- ✅ Gestionar estado de pedidos en `user/ver_pedido.php`
+- ✅ Contactar clientes por método elegido
+
+#### **Para Usuarios Compradores:**
+- ✅ Registrarse como cliente o empresa
+- ✅ Ver productos en páginas de empresa
+- ✅ Agregar productos al carrito (funciona anónimo)
+- ✅ Gestionar carrito con cantidades
+- ✅ Hacer pedidos separados por empresa (requiere login)
+- ✅ Elegir método de contacto: WhatsApp, Teléfono+Email, o Email
+- ✅ Agregar notas al pedido
+- ✅ Ver confirmación de pedido
+
+#### **Sistema de Carrito:**
+- ✅ Almacenamiento en sesiones PHP
+- ✅ Agrupación de productos por empresa
+- ✅ Cálculo automático de totales
+- ✅ Actualización de cantidades en tiempo real
+
+### 12.4 Flujo de Compra
+
+```
+Usuario ve productos en empresa.php
+        ↓
+Hace clic "Agregar al Carrito"
+        ↓
+Productos se almacenan en $_SESSION['carrito']
+        ↓
+Usuario va a carrito.php
+        ↓
+Ve productos agrupados por empresa
+        ↓
+Hace clic "Hacer Pedido" para cada empresa
+        ↓
+hacer_pedido.php: Elige método de contacto
+        ↓
+Se crea registro en BD (pedidos + pedido_items)
+        ↓
+pedido_confirmado.php: Muestra resumen
+        ↓
+Empresa contacta al usuario por método elegido
+```
+
+### 12.5 Métodos de Contacto
+
+1. **WhatsApp:** Usuario proporciona número, empresa inicia chat
+2. **Teléfono + Email:** Datos completos para contacto múltiple
+3. **Email:** Contacto por correo electrónico
+
+### 12.6 Archivos Creados/Modificados
+
+#### **Nuevos Archivos:**
+- `temp_ecommerce_setup.php` (script de instalación de BD)
+- `temp_update_roles.php` (actualización de roles de usuario)
+- `carrito.php` (gestión del carrito de compras)
+- `hacer_pedido.php` (formulario de pedido)
+- `pedido_confirmado.php` (confirmación de pedido)
+- `user/productos.php` (CRUD de productos)
+- `user/api_productos.php` (API para gestión de productos)
+- `user/ver_pedido.php` (detalles de pedidos para empresas)
+
+#### **Archivos Creados:**
+- `agregar_carrito.php` (endpoint AJAX para agregar productos al carrito)
+
+#### **Archivos Modificados:**
+- `auth/register.php` (corrección de error de sintaxis - código duplicado)
+- `js/main.js` (función `agregarAlCarrito()` con manejo de usuarios no autenticados)
+- `DOCUMENTACION.md` (esta documentación)
+
+#### **Carpetas Creadas:**
+- `uploads/productos/` (imágenes de productos)
+
+### 12.7 Consideraciones de Seguridad
+- ✅ Validación de propiedad de productos (solo dueño puede editar)
+- ✅ Sanitización de inputs
+- ✅ Protección CSRF en formularios
+- ✅ Validación de archivos de imagen
+- ✅ Sesiones seguras para carrito
+
+### 12.8 Limitaciones Actuales
+- ❌ No hay sistema de pagos integrado (por diseño)
+- ❌ No hay inventario/stock tracking
+- ❌ No hay envío automático de emails
+- ❌ No hay panel de administración de pedidos para empresas
+
+### 12.9 Expansión Futura
+Posibles mejoras:
+- Sistema de reseñas de productos
+- Cupones de descuento
+- Seguimiento de pedidos
+- Notificaciones por email
+- Integración con pasarelas de pago
+- API para apps móviles
+
+---
+
+## 13. Mejoras Recientes de UI/UX (Marzo 2026)
+
+### 13.1 Introducción
+Se implementaron mejoras significativas en la interfaz de usuario y experiencia de navegación para optimizar el flujo de compra y la usabilidad general del sitio.
+
+### 13.2 Icono de Carrito con Contador Dinámico
+**Archivo modificado:** `templates/header.php`
+
+Se agregó un icono de carrito persistente en la barra de navegación con las siguientes características:
+
+- **Contador dinámico:** Muestra el número total de productos en el carrito
+- **Posicionamiento absoluto:** Badge rojo con Bootstrap que se superpone al icono
+- **Actualización automática:** El contador se actualiza en todas las páginas
+- **Enlace directo:** Click lleva directamente a `carrito.php`
+
+**Implementación técnica:**
+```php
+// Contar productos en carrito
+$carrito_count = 0;
+if (isset($_SESSION['carrito'])) {
+    foreach ($_SESSION['carrito'] as $empresa_id => $productos) {
+        $carrito_count += count($productos);
+    }
+}
+
+// HTML del icono
+<a href="carrito.php" class="btn btn-outline-primary position-relative">
+    <i class="fas fa-shopping-cart"></i>
+    <?php if ($carrito_count > 0): ?>
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            <?= $carrito_count ?>
+        </span>
+    <?php endif; ?>
+</a>
+```
+
+**Beneficios:**
+- ✅ Visibilidad constante del estado del carrito
+- ✅ Mejor experiencia de usuario (no hay que recordar si agregaron productos)
+- ✅ Diseño responsive con Bootstrap
+- ✅ Acceso rápido al carrito desde cualquier página
+
+### 13.3 Corrección de Redirección de Login
+**Archivo modificado:** `auth/login.php`
+
+Se implementó un sistema de redirección inteligente después del login que prioriza:
+
+1. **URL guardada:** Si el usuario fue redirigido al login desde una página protegida
+2. **Dashboard apropiado:** Según el rol del usuario
+   - **Admin:** `admin/dashboard.php`
+   - **Cliente/Empresa:** `user/dashboard.php`
+
+**Lógica implementada:**
+```php
+// Después de login exitoso
+if (isset($_SESSION['redirect_after_login'])) {
+    $redirect = $_SESSION['redirect_after_login'];
+    unset($_SESSION['redirect_after_login']);
+    header("Location: $redirect");
+    exit;
+} elseif ($_SESSION['user_role'] == 'admin') {
+    header("Location: admin/dashboard.php");
+} else {
+    header("Location: user/dashboard.php");
+}
+```
+
+**Beneficios:**
+- ✅ Eliminación de redirecciones incorrectas
+- ✅ Mejor flujo de usuario (regresa donde estaba)
+- ✅ Separación clara entre roles de usuario
+- ✅ Experiencia más intuitiva
+
+### 13.4 Archivos Modificados
+- **Modificados:**
+  - `templates/header.php` (icono de carrito con contador)
+  - `auth/login.php` (lógica de redirección inteligente)
+  - `DOCUMENTACION.md` (esta documentación)
+
+### 13.5 Impacto en la Experiencia de Usuario
+- **Antes:** Carrito invisible, redirecciones confusas después del login
+- **Después:** Carrito siempre visible con contador, redirecciones apropiadas según rol
+
+### 13.6 Próximas Mejoras Planeadas
+- Implementación de notificaciones por email para pedidos
+- Sistema de reseñas y calificaciones
+- Panel de administración de pedidos para empresas
+- Optimización móvil adicional
+
+---
+
+## 14. Correcciones de Bugs (Marzo 2026)
+
+### 14.1 Introducción
+Se corrigieron errores críticos que impedían el funcionamiento básico del sistema de registro y carrito de compras.
+
+### 14.2 Error de Sintaxis en Registro
+**Archivo modificado:** `auth/register.php`
+
+**Problema:** Error de parse "Unclosed '{' on line 8" causado por código duplicado y mal estructurado en el bloque try-catch.
+
+**Solución:** Eliminación del código duplicado y reestructuración correcta del manejo de excepciones.
+
+**Código corregido:**
+```php
+try {
+    $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$nombre, $email, $password, $rol]);
+    $success = "¡Registro exitoso! <a href='login.php'>Inicia sesión</a>";
+    if ($rol === 'admin') {
+        $success .= " (Primer usuario creado como administrador)";
+    }
+} catch (PDOException $e) {
+    $error = "El correo ya está registrado.";
+}
+```
+
+### 14.3 Funcionalidad del Carrito para Usuarios Anónimos
+**Archivos creados/modificados:**
+- `agregar_carrito.php` (nuevo endpoint AJAX)
+- `js/main.js` (función `agregarAlCarrito()`)
+
+**Problema:** El botón "Agregar al Carrito" no funcionaba porque la función JavaScript no existía.
+
+**Solución:** 
+- Creación de endpoint `agregar_carrito.php` que maneja la lógica de agregar productos
+- Implementación de función JavaScript que hace petición AJAX
+- Verificación de autenticación: usuarios no logueados son redirigidos al login
+
+**Flujo implementado:**
+```
+Usuario hace clic "Agregar al Carrito"
+        ↓
+JavaScript envía petición AJAX a agregar_carrito.php
+        ↓
+PHP verifica si usuario está autenticado
+        ↓
+NO → Respuesta JSON con redirect a login.php
+        ↓
+SÍ → Agrega producto a $_SESSION['carrito']
+        ↓
+JavaScript muestra toast de éxito y actualiza contador
+```
+
+**Características implementadas:**
+- ✅ Validación de producto existente
+- ✅ Verificación de autenticación
+- ✅ Manejo de errores con mensajes toast
+- ✅ Actualización visual del contador del carrito
+- ✅ Redirección automática para usuarios no autenticados
+
+### 14.4 Archivos Modificados
+- **Creados:**
+  - `agregar_carrito.php` (endpoint AJAX para carrito)
+- **Modificados:**
+  - `auth/register.php` (corrección de sintaxis)
+  - `js/main.js` (función agregarAlCarrito y utilidades, ruta absoluta)
+  - `user/dashboard.php` (interfaces separadas para clientes y empresas)
+  - `DOCUMENTACION.md` (documentación de correcciones)
+
+### 14.5 Validaciones Realizadas
+- ✅ Sintaxis PHP correcta en todos los archivos
+- ✅ Página de registro funcionando (HTTP 200)
+- ✅ Endpoint de carrito creado y funcional
+- ✅ Función JavaScript implementada con manejo de errores
+- ✅ Dashboard muestra interfaces diferentes según rol
+
+---
+
+## 15. Interfaces Diferenciadas por Rol de Usuario (Marzo 2026)
+
+### 15.1 Introducción
+Se implementaron interfaces completamente diferentes para clientes y empresas en el dashboard de usuario, eliminando opciones irrelevantes y agregando funcionalidades específicas para cada rol.
+
+### 15.2 Dashboard para Clientes
+**Interfaz enfocada en compras:**
+
+- **Estadísticas principales:**
+  - Total de pedidos realizados
+  - Pedidos pendientes
+  - Acceso rápido al carrito
+
+- **Lista de pedidos:**
+  - Historial completo de compras
+  - Estado de cada pedido con iconos visuales
+  - Información de contacto de las empresas
+  - Método de contacto elegido
+  - Botón para ver detalles de cada pedido
+
+- **Funcionalidades:**
+  - ✅ Ver historial de pedidos
+  - ✅ Estado de pedidos en tiempo real
+  - ✅ Información de contacto de empresas
+  - ✅ Enlace directo a explorar más empresas
+  - ❌ No muestra opciones de crear empresas
+
+### 15.3 Dashboard para Empresas
+**Interfaz enfocada en gestión:**
+
+- **Gestión de empresas:**
+  - Lista de empresas propias
+  - Estado de aprobación
+  - Acciones de editar, eliminar, gestionar productos
+
+- **Creación de empresas:**
+  - Formulario completo para agregar nuevas empresas
+  - Categorías disponibles
+  - Upload de logos
+
+- **Pedidos recibidos:**
+  - Lista de pedidos de clientes
+  - Información del comprador
+  - Estado y método de contacto
+  - Acceso a detalles de pedidos
+
+### 15.4 Diferencias Clave
+
+| Característica | Cliente | Empresa |
+|---|---|---|
+| **Objetivo principal** | Comprar productos | Vender productos |
+| **Pedidos** | Historial de compras | Pedidos recibidos |
+| **Empresas** | ❌ No gestiona | ✅ Crea y administra |
+| **Productos** | ❌ No gestiona | ✅ Administra catálogo |
+| **Estadísticas** | Pedidos realizados | Empresas y productos |
+| **Navegación** | Explorar empresas | Gestionar negocio |
+
+### 15.5 Implementación Técnica
+**Lógica de separación:**
+```php
+if ($user_role === 'cliente') {
+    // Mostrar dashboard de cliente
+    // - Estadísticas de pedidos
+    // - Historial de compras
+} else {
+    // Mostrar dashboard de empresa
+    // - Gestión de empresas
+    // - Pedidos recibidos
+}
+```
+
+### 15.6 Beneficios Implementados
+- ✅ **UX mejorada:** Cada usuario ve solo lo relevante
+- ✅ **Navegación clara:** Sin opciones confusas
+- ✅ **Funcionalidad enfocada:** Interfaces específicas por objetivo
+- ✅ **Seguridad:** No muestra opciones de otros roles
+
+### 15.7 Corrección del Carrito
+**Problema identificado:** Ruta relativa incorrecta en JavaScript
+
+**Solución:** Cambiar de ruta relativa a absoluta
+```javascript
+// Antes (relativa)
+fetch('agregar_carrito.php', {
+
+// Después (absoluta)  
+fetch('/directorio_empresas/agregar_carrito.php', {
+```
+
+**Resultado:** Botón "Agregar al Carrito" ahora funciona correctamente tanto para usuarios autenticados como anónimos.
+
+### 15.8 Archivos Modificados
+- **Modificados:**
+  - `user/dashboard.php` (interfaces separadas por rol)
+  - `js/main.js` (ruta absoluta para endpoint del carrito, incluir credenciales)
+  - `admin/usuarios.php` (agregar roles cliente y empresa, mostrar nombres amigables)
+  - `DOCUMENTACION.md` (documentación de mejoras)
+
+### 15.9 Próximas Mejoras
+- Implementar notificaciones push para nuevos pedidos
+- Sistema de reseñas y calificaciones
+- Dashboard móvil optimizado
+- Exportación de datos de pedidos
+
+---
+
+## 16. Correcciones de Bugs y Mejoras (Marzo 2026)
+
+### 16.1 Introducción
+Se corrigieron problemas críticos en el sistema de carrito de compras y se mejoró la gestión de usuarios en el panel de administración.
+
+### 16.2 Corrección del Botón "Agregar al Carrito"
+**Problema identificado:** El botón no funcionaba porque las peticiones AJAX no incluían las cookies de sesión.
+
+**Solución implementada:**
+```javascript
+fetch('/directorio_empresas/agregar_carrito.php', {
+    method: 'POST',
+    body: formData,
+    credentials: 'same-origin'  // ✅ Incluir cookies de sesión
+})
+```
+
+**Resultado:** El botón "Agregar al Carrito" ahora funciona correctamente para usuarios autenticados y muestra el mensaje de login para usuarios anónimos.
+
+### 16.3 Gestión Completa de Roles de Usuario
+**Problema:** El panel de administración solo mostraba roles "Usuario" y "Administrador", faltando "Cliente" y "Empresa".
+
+**Correcciones implementadas:**
+
+#### **Formulario de Edición:**
+```html
+<select name="rol" class="form-select">
+    <option value="cliente">Cliente</option>
+    <option value="empresa">Empresa</option>
+    <option value="admin">Administrador</option>
+</select>
+```
+
+#### **Validación de Roles:**
+```php
+$rol = in_array($_POST['rol'] ?? '', ['admin', 'cliente', 'empresa']) ? $_POST['rol'] : 'cliente';
+```
+
+#### **Visualización Amigable:**
+```php
+$rol_nombres = [
+    'cliente' => 'Cliente',
+    'empresa' => 'Empresa', 
+    'admin' => 'Administrador'
+];
+```
+
+### 16.4 Funcionalidades Implementadas
+- ✅ **Carrito funcional:** Botón "Agregar al Carrito" opera correctamente
+- ✅ **Gestión de roles completa:** Todos los roles (cliente, empresa, admin) disponibles
+- ✅ **Interfaz amigable:** Nombres de roles en español en la tabla
+- ✅ **Validación robusta:** Lógica de roles corregida y simplificada
+
+### 16.5 Archivos Modificados
+- **Modificados:**
+  - `js/main.js` (credenciales en petición AJAX)
+  - `admin/usuarios.php` (roles completos y visualización amigable)
+  - `carrito.php` (reestructuración completa para carrito agrupado por empresa)
+  - `DOCUMENTACION.md` (documentación de correcciones)
+
+### 16.6 Validaciones Realizadas
+- ✅ Sintaxis PHP correcta en archivos modificados
+- ✅ Páginas responden correctamente (HTTP 200)
+- ✅ Endpoint del carrito incluye credenciales de sesión
+- ✅ Panel de administración muestra todos los roles
+- ✅ Carrito maneja correctamente la estructura agrupada por empresa
+
+---
+
+## 17. Corrección de Estructura del Carrito (Marzo 2026)
+
+### 17.1 Introducción
+Se corrigió un problema crítico en la estructura del carrito de compras que causaba múltiples errores de "Undefined array key".
+
+### 17.2 Problema Identificado
+**Errores reportados:**
+- `Warning: Undefined array key "empresa_id"`
+- `Warning: Undefined array key "empresa_nombre"`
+- `Warning: Undefined array key "precio"`
+- `Warning: Undefined array key "cantidad"`
+- `Warning: Undefined array key "nombre"`
+
+**Causa raíz:** Inconsistencia en la estructura del carrito entre archivos:
+- `agregar_carrito.php`: Estructura agrupada por empresa
+- `carrito.php`: Esperaba estructura plana por producto
+
+### 17.3 Estructura del Carrito Corregida
+
+#### **Estructura Implementada:**
+```php
+$_SESSION['carrito'][$empresa_id][] = [
+    'id' => $producto_id,
+    'nombre' => $producto['nombre'],
+    'precio' => $producto['precio'],
+    'imagen' => $producto['imagen'],
+    'cantidad' => $cantidad
+];
+```
+
+#### **Lógica de Procesamiento:**
+```php
+// Calcular totales por empresa
+foreach ($_SESSION['carrito'] as $empresa_id => $productos) {
+    // Obtener nombre de empresa desde BD
+    $stmt = $pdo->prepare("SELECT nombre FROM empresas WHERE id = ?");
+    $stmt->execute([$empresa_id]);
+    $empresa = $stmt->fetch();
+    
+    // Procesar productos de cada empresa
+    $total = 0;
+    foreach ($productos as $item) {
+        $total += $item['precio'] * $item['cantidad'];
+    }
+}
+```
+
+### 17.4 Funcionalidades Implementadas
+- ✅ **Carrito agrupado por empresa:** Productos organizados por empresa vendedora
+- ✅ **Actualización de cantidades:** Funciona correctamente con nueva estructura
+- ✅ **Eliminación de productos:** Maneja índices correctos del array
+- ✅ **Cálculo de totales:** Por empresa y global
+- ✅ **Interfaz visual:** Muestra productos agrupados por empresa
+
+### 17.5 Operaciones del Carrito
+
+#### **Actualizar Cantidad:**
+```php
+foreach ($_SESSION['carrito'] as $empresa_id => &$productos) {
+    foreach ($productos as &$item) {
+        if ($item['id'] == $producto_id) {
+            $item['cantidad'] = $cantidad;
+            break 2;
+        }
+    }
+}
+```
+
+#### **Eliminar Producto:**
+```php
+foreach ($_SESSION['carrito'] as $empresa_id => &$productos) {
+    foreach ($productos as $key => $item) {
+        if ($item['id'] == $producto_id) {
+            unset($productos[$key]);
+            if (empty($productos)) {
+                unset($_SESSION['carrito'][$empresa_id]);
+            }
+            break 2;
+        }
+    }
+}
+```
+
+### 17.6 Archivos Modificados
+- **Modificados:**
+  - `carrito.php` (reestructuración completa de lógica y vista)
+  - `DOCUMENTACION.md` (documentación de correcciones)
+
+### 17.7 Beneficios Implementados
+- ✅ **Sin errores de array:** Todas las claves están correctamente definidas
+- ✅ **Estructura consistente:** Mismo formato en agregar y mostrar carrito
+- ✅ **Funcionalidad completa:** Actualizar, eliminar, calcular totales
+- ✅ **Interfaz clara:** Productos agrupados por empresa vendedora
+
+---
+
+## 18. Ajuste Empresa: Carrito → Ventas y Chat (Marzo 2026)
+
+### 18.1 Ajuste en roles
+- Las empresas ya no ven sección de carrito en `carrito.php` (redireccionan a `user/dashboard.php`).
+- Sección de cliente sigue funcionando con carrito normal.
+
+### 18.2 Botón "Ventas" para empresa
+- En `user/dashboard.php`, empresa ahora muestra un botón `📈 Ventas` que lleva a sección de pedidos recibidos.
+
+### 18.3 Chat por pedido
+- En `user/ver_pedido.php`, se agregó chat por pedido entre cliente y empresa:
+  - Tabla `pedido_mensajes` creada si no existe.
+  - Vista de mensajes con autor, rol y timestamp.
+  - Formulario para enviar nuevos mensajes.
+- Chat está disponible tanto para empresa (pedido propio) como para cliente (pedido propio).
+
+### 18.4 UI en pedido
+- Se muestran datos completos para cerrar venta:
+  - cliente, email, fecha, estado, método de contacto, detalles de contacto
+  - lista de productos con subtotales
+  - botones de acción (WhatsApp/Email/Llamar)
+
+### 18.5 Notificaciones internas
+- Al crear pedido, se conserva `detalles_contacto` en `pedidos`, y se puede llevar conversación dentro del pedido via chat.
+
+---
+
+**Última actualización:** Marzo 2026  
+**Versión:** 1.8 - Company Sales + Chat
+
+
+---
+
+**Última actualización:** Marzo 2026  
+**Versión:** 1.4 - Bug Fixes
 

@@ -18,8 +18,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Previene session fixation
         session_regenerate_id(true);
 
-        if (!isset($base_url)) $base_url = '..';
-        header("Location: " . $base_url . "/index.php");
+        // Redirigir a URL guardada o dashboard según rol
+        if (isset($_SESSION['redirect_after_login'])) {
+            $redirect = $_SESSION['redirect_after_login'];
+            unset($_SESSION['redirect_after_login']);
+            header("Location: " . $redirect);
+        } else {
+            // Redirección por defecto según rol
+            if ($user['rol'] == 'admin') {
+                header("Location: ../admin/dashboard.php");
+            } else {
+                header("Location: ../user/dashboard.php");
+            }
+        }
         exit;
     } else {
         $error = "Credenciales incorrectas";
@@ -33,6 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="card shadow">
             <div class="card-body">
                 <h3 class="text-center mb-4">Iniciar Sesión</h3>
+                <?php if(isset($_GET['msg'])): ?>
+                    <div class="alert alert-info"><?= htmlspecialchars($_GET['msg']) ?></div>
+                <?php endif; ?>
                 <?php if(isset($error)): ?>
                     <div class="alert alert-danger"><?= $error ?></div>
                 <?php endif; ?>

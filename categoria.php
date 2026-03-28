@@ -19,8 +19,8 @@ $page_title = htmlspecialchars($categoria['nombre']) . ' - Directorio de Empresa
 $page_description = 'Explora empresas en la categoría ' . htmlspecialchars($categoria['nombre']) . '. Encuentra servicios locales en nuestro directorio.';
 $page_keywords = htmlspecialchars($categoria['nombre']) . ', empresas, directorio, servicios';
 
-// Obtener empresas de esa categoría
-$stmt = $pdo->prepare("SELECT * FROM empresas WHERE categoria_id = ? ORDER BY nombre");
+// Obtener empresas de esa categoría (solo aprobadas)
+$stmt = $pdo->prepare("SELECT * FROM empresas WHERE categoria_id = ? AND aprobada = 1 ORDER BY nombre");
 $stmt->execute([$id]);
 $empresas = $stmt->fetchAll();
 ?>

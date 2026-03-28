@@ -6,6 +6,14 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] != 'admin') {
     die("Acceso denegado");
 }
 
+// Definir base_url tempranamente
+if (!isset($base_url)) {
+    $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+    $parts = array_filter(explode('/', trim($scriptDir, '/')));
+    $depth = max(0, count($parts) - 1);
+    $base_url = $depth === 0 ? '.' : str_repeat('../', $depth);
+}
+
 $msg = '';
 
 // Manejar acciones por POST (aprobar, rechazar, eliminar)
@@ -125,6 +133,7 @@ if (count($pendientes) > 0):
                         <td><?= $emp['categoria_nombre'] ?? 'Sin categoría' ?></td>
                         <td><?= $emp['usuario_nombre'] ?? 'Sin usuario' ?></td>
                             <td>
+                                <a href="<?= $base_url ?>/empresa.php?id=<?= $emp['id'] ?>" target="_blank" class="btn btn-info btn-sm">👁️ Ver Página</a>
                                 <form method="POST" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= $emp['id'] ?>">
@@ -220,13 +229,14 @@ if (count($pendientes) > 0):
                 <td><?= $emp['usuario_nombre'] ?? 'Admin' ?></td>
                 <td><?= $emp['telefono'] ?? '-' ?></td>
                 <td>
-                            <form method="POST" style="display:inline" onsubmit="return confirm('¿Eliminar esta empresa?')">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
-                                <input type="hidden" name="id" value="<?= $emp['id'] ?>">
-                                <input type="hidden" name="action" value="eliminar">
-                                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
-                            </form>
-                        </td>
+                    <a href="<?= $base_url ?>/empresa.php?id=<?= $emp['id'] ?>" target="_blank" class="btn btn-info btn-sm">👁️ Ver Página</a>
+                    <form method="POST" style="display:inline" onsubmit="return confirm('¿Eliminar esta empresa?')">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
+                        <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                        <input type="hidden" name="action" value="eliminar">
+                        <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                    </form>
+                </td>
             </tr>
         <?php endforeach; ?>
     </tbody>
@@ -236,7 +246,6 @@ if (count($pendientes) > 0):
     <div class="alert alert-warning">No hay empresas aprobadas.</div>
 <?php endif; ?>
 
-<?php if (!isset($base_url)) $base_url = '..'; ?>
 <a href="<?= $base_url ?>/admin/dashboard.php" class="btn btn-secondary">← Volver al Panel</a>
 
     </div>

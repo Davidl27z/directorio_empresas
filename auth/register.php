@@ -9,10 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nombre = $_POST['nombre'];
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $tipo_usuario = $_POST['tipo_usuario'] ?? 'cliente';
 
     // Si no hay usuarios aún, el primer registro se convierte en admin
     $isFirstUser = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() == 0;
-    $rol = $isFirstUser ? 'admin' : 'user';
+    $rol = $isFirstUser ? 'admin' : ($tipo_usuario == 'empresa' ? 'empresa' : 'cliente');
     
     try {
         $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)");
@@ -54,6 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="mb-3">
                         <label class="form-label">Contraseña</label>
                         <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Usuario</label>
+                        <select name="tipo_usuario" class="form-select" required>
+                            <option value="cliente">Cliente </option>
+                            <option value="empresa">Empresa </option>
+                        </select>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Registrarse</button>
                 </form>

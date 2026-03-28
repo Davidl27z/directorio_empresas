@@ -11,7 +11,7 @@ $require_chartjs = true;
 include '../templates/header.php';
 ?>
 
-<h1>Panel de Administrador</h1>
+<h1 style="display: flex; align-items: center; gap: 12px;"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Panel de Administrador</h1>
 
 <div class="row mt-4">
     <?php include 'sidebar.php'; ?>
@@ -111,7 +111,7 @@ function svg_data_uri($name, $id = 0) {
                         <tr>
                             <td>
                                 <div class="category-row">
-                                    <img data-avatar-src="<?= svg_data_uri($cat['nombre'], (int)$cat['id']) ?>" alt="" class="category-img" />
+                                    <img src="<?= svg_data_uri($cat['nombre'], (int)$cat['id']) ?>" alt="" class="category-img" />
                                     <span class="category-name"><?= htmlspecialchars($cat['nombre'] ?: 'Sin categoría') ?></span>
                                 </div>
                             </td>

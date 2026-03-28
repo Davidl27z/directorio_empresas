@@ -3,6 +3,8 @@
 if (!ini_get('default_charset') || strtolower(ini_get('default_charset')) !== 'utf-8') {
     ini_set('default_charset', 'UTF-8');
 }
+require_once __DIR__ . '/../config/csrf.php';
+require_once __DIR__ . '/../config/ui_icons.php';
 if (function_exists('mb_internal_encoding')) {
     mb_internal_encoding('UTF-8');
     mb_http_output('UTF-8');
@@ -13,6 +15,7 @@ if (function_exists('mb_internal_encoding')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= htmlspecialchars(csrf_token()) ?>">
     <title><?php echo isset($page_title) ? htmlspecialchars($page_title) : 'Directorio de Empresas'; ?></title>
     <meta name="description" content="<?php echo isset($page_description) ? htmlspecialchars($page_description) : 'Encuentra la mejor empresa en nuestro directorio de empresas locales.'; ?>">
     <meta name="keywords" content="<?php echo isset($page_keywords) ? htmlspecialchars($page_keywords) : 'empresas, directorio, locales, servicios'; ?>">
@@ -48,14 +51,44 @@ if (function_exists('mb_internal_encoding')) {
     <li class="nav-item">
         <a class="nav-link" href="<?= $base_url ?>/index.php">Inicio</a>
     </li>
+    <?php
+    $carrito_count = 0;
+    if (isset($_SESSION['carrito']) && is_array($_SESSION['carrito'])) {
+        foreach ($_SESSION['carrito'] as $productosEmpresa) {
+            if (!is_array($productosEmpresa)) {
+                continue;
+            }
+            foreach ($productosEmpresa as $item) {
+                $carrito_count += (int) ($item['cantidad'] ?? 0);
+            }
+        }
+    }
+    ?>
+    <?php if(isset($_SESSION['user_id']) && isset($_SESSION['user_role'])): ?>
+        <?php if($_SESSION['user_role'] === 'cliente'): ?>
+            <li class="nav-item">
+                <a class="nav-link position-relative d-inline-flex align-items-center gap-2" href="<?= $base_url ?>/carrito.php">
+                    <?= ui_icon('cart', 'navbar-icon') ?>
+                    <span>Carrito</span>
+                    <span id="cart-counter-badge" class="badge bg-danger position-absolute top-0 start-100 translate-middle <?= $carrito_count > 0 ? '' : 'd-none' ?>" data-count="<?= $carrito_count ?>">
+                        <?= $carrito_count ?>
+                    </span>
+                </a>
+            </li>
+        <?php elseif($_SESSION['user_role'] === 'empresa'): ?>
+            <li class="nav-item">
+                <a class="nav-link" href="<?= $base_url ?>/recursos.php">Recursos</a>
+            </li>
+        <?php endif; ?>
+    <?php endif; ?>
     <?php if(isset($_SESSION['user_id'])): ?>
         <?php if(isset($_SESSION['user_role']) && $_SESSION['user_role'] == 'admin'): ?>
             <li class="nav-item">
-                <a class="nav-link fw-bold" href="<?= $base_url ?>/admin/dashboard.php">📊 Admin</a>
+                <a class="nav-link fw-bold d-inline-flex align-items-center gap-2" href="<?= $base_url ?>/admin/dashboard.php"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> <span>Admin</span></a>
             </li>
         <?php else: ?>
             <li class="nav-item">
-                <a class="nav-link fw-bold" href="<?= $base_url ?>/user/dashboard.php">👤 Mi Panel</a>
+                <a class="nav-link fw-bold d-inline-flex align-items-center gap-2" href="<?= $base_url ?>/user/dashboard.php<?= (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'empresa') ? '/resumen' : '' ?>"><?= ui_icon('user-panel', 'navbar-icon') ?><span>Mi Panel</span></a>
             </li>
         <?php endif; ?>
         <li class="nav-item">
@@ -73,4 +106,8 @@ if (function_exists('mb_internal_encoding')) {
             </div>
         </div>
     </nav>
+    <script>
+        window.APP_BASE_URL = <?= json_encode($base_url) ?>;
+        window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;
+    </script>
     <main class="container py-4">

@@ -40,19 +40,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'guardar' && $id) {
             $nombre = trim($_POST['nombre']);
             $email = trim($_POST['email']);
-            $rol = in_array($_POST['rol'] ?? '', ['admin', 'user']) ? $_POST['rol'] : 'user';
+            $rol = in_array($_POST['rol'] ?? '', ['admin', 'cliente', 'empresa']) ? $_POST['rol'] : 'cliente';
 
             // Evitar que se retire el último admin
             if ($_SESSION['user_id'] == $id && $rol !== 'admin') {
                 $msg = "❌ No puedes quitarte el rol de administrador.";
             } else {
-                if ($rol === 'user') {
-                    $adminCount = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'")->fetchColumn();
-                    $isAdmin = $pdo->prepare("SELECT rol FROM usuarios WHERE id = ?");
-                    $isAdmin->execute([$id]);
-                    if ($isAdmin->fetchColumn() === 'admin' && $adminCount <= 1) {
-                        $msg = "❌ No puedes cambiar el rol del único administrador.";
-                    }
+                // Verificar que no se quite el último admin
+                $adminCount = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'")->fetchColumn();
+                $isAdmin = $pdo->prepare("SELECT rol FROM usuarios WHERE id = ?");
+                $isAdmin->execute([$id]);
+                if ($isAdmin->fetchColumn() === 'admin' && $adminCount <= 1 && $rol !== 'admin') {
+                    $msg = "❌ No puedes cambiar el rol del único administrador.";
                 }
             }
 
@@ -110,7 +109,8 @@ include '../templates/header.php';
                 <div class="col-md-4">
                     <label class="form-label">Rol</label>
                     <select name="rol" class="form-select">
-                        <option value="user" <?= $editUser['rol'] === 'user' ? 'selected' : '' ?>>Usuario</option>
+                        <option value="cliente" <?= $editUser['rol'] === 'cliente' ? 'selected' : '' ?>>Cliente</option>
+                        <option value="empresa" <?= $editUser['rol'] === 'empresa' ? 'selected' : '' ?>>Empresa</option>
                         <option value="admin" <?= $editUser['rol'] === 'admin' ? 'selected' : '' ?>>Administrador</option>
                     </select>
                 </div>
@@ -147,7 +147,16 @@ include '../templates/header.php';
                 <td><?= $user['id'] ?></td>
                 <td><?= htmlspecialchars($user['nombre']) ?></td>
                 <td><?= htmlspecialchars($user['email']) ?></td>
-                <td><?= htmlspecialchars($user['rol']) ?></td>
+                <td>
+                    <?php
+                    $rol_nombres = [
+                        'cliente' => 'Cliente',
+                        'empresa' => 'Empresa',
+                        'admin' => 'Administrador'
+                    ];
+                    echo htmlspecialchars($rol_nombres[$user['rol']] ?? $user['rol']);
+                    ?>
+                </td>
                 <td><?= htmlspecialchars($user['created_at'] ?? '') ?></td>
                 <td>
                     <a href="usuarios.php?edit=<?= $user['id'] ?>" class="btn btn-outline-primary btn-sm me-1">Editar</a>

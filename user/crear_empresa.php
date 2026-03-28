@@ -2,6 +2,9 @@
 session_start();
 require '../config/db.php';
 require_once '../config/csrf.php';
+require_once '../config/empresa_contacto.php';
+
+empresa_ensure_contact_schema($pdo);
 
 if (!isset($_SESSION['user_id'])) {
     if (!isset($base_url)) $base_url = '..';
@@ -21,7 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $direccion = trim($_POST['direccion']);
         $telefono = trim($_POST['telefono']);
         $email = trim($_POST['email']);
-        $website = trim($_POST['website']);
+        $website = empresa_normalize_website($_POST['website'] ?? '');
+        $instagram = empresa_normalize_instagram($_POST['instagram'] ?? '');
+        $tiktok = empresa_normalize_tiktok($_POST['tiktok'] ?? '');
+        $facebook = empresa_normalize_facebook($_POST['facebook'] ?? '');
+        $whatsapp = empresa_normalize_whatsapp($_POST['whatsapp'] ?? '');
+        $medios_contacto = empresa_normalize_contact_methods($_POST['medios_contacto'] ?? []);
         $usuario_id = $_SESSION['user_id'];
         
         // Validar email y website opcionales
@@ -29,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $msg = "❌ Email no válido";
         } elseif ($website && !filter_var($website, FILTER_VALIDATE_URL)) {
             $msg = "❌ Website no válido";
+        } elseif ($whatsapp !== '' && strlen(empresa_whatsapp_digits($whatsapp)) < 8) {
+            $msg = "❌ WhatsApp no válido";
+        } elseif (empty($medios_contacto)) {
+            $msg = "❌ Debes seleccionar al menos un medio de contacto para pedidos";
         } else {
             // Manejo de logo (opcional)
             require_once '../config/upload.php';
@@ -45,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // noop: fall through to redirect with error
             } else {
                 // Por defecto aprobada = 0 (pendiente)
-                $stmt = $pdo->prepare("INSERT INTO empresas (nombre, descripcion, categoria_id, direccion, telefono, email, website, usuario_id, aprobada, logo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)");
-                $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website, $usuario_id, $logoFilename]);
+                $stmt = $pdo->prepare("INSERT INTO empresas (nombre, descripcion, categoria_id, direccion, telefono, email, website, instagram, tiktok, facebook, whatsapp, medios_contacto_pedido, usuario_id, aprobada, logo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)");
+                $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website, $instagram, $tiktok, $facebook, $whatsapp, empresa_serialize_contact_methods($medios_contacto), $usuario_id, $logoFilename]);
 
                 $msg = "✅ Empresa enviada correctamente. Está pendiente de aprobación por el admin.";
             }

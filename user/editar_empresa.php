@@ -2,6 +2,9 @@
 session_start();
 require '../config/db.php';
 require_once '../config/csrf.php';
+require_once '../config/empresa_contacto.php';
+
+empresa_ensure_contact_schema($pdo);
 
 if (!isset($_SESSION['user_id'])) {
     if (!isset($base_url)) $base_url = '..';
@@ -37,13 +40,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $direccion = trim($_POST['direccion']);
     $telefono = trim($_POST['telefono']);
     $email = trim($_POST['email']);
-    $website = trim($_POST['website']);
+    $website = empresa_normalize_website($_POST['website'] ?? '');
+    $instagram = empresa_normalize_instagram($_POST['instagram'] ?? '');
+    $tiktok = empresa_normalize_tiktok($_POST['tiktok'] ?? '');
+    $facebook = empresa_normalize_facebook($_POST['facebook'] ?? '');
+    $whatsapp = empresa_normalize_whatsapp($_POST['whatsapp'] ?? '');
+    $medios_contacto = empresa_normalize_contact_methods($_POST['medios_contacto'] ?? []);
 
     if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         die('Email no válido');
     }
     if ($website && !filter_var($website, FILTER_VALIDATE_URL)) {
         die('Website no válido');
+    }
+    if ($whatsapp !== '' && strlen(empresa_whatsapp_digits($whatsapp)) < 8) {
+        die('WhatsApp no válido');
+    }
+    if (empty($medios_contacto)) {
+        die('Debes seleccionar al menos un medio de contacto para pedidos');
     }
 
     // Manejo de logo (opcional)
@@ -63,11 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Si edita, vuelve a estado pendiente (para que el admin la revise de nuevo)
     if ($logoFilename) {
-        $stmt = $pdo->prepare("UPDATE empresas SET nombre=?, descripcion=?, categoria_id=?, direccion=?, telefono=?, email=?, website=?, aprobada=0, logo=? WHERE id=?");
-        $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website, $logoFilename, $id]);
+        $stmt = $pdo->prepare("UPDATE empresas SET nombre=?, descripcion=?, categoria_id=?, direccion=?, telefono=?, email=?, website=?, instagram=?, tiktok=?, facebook=?, whatsapp=?, medios_contacto_pedido=?, aprobada=0, logo=? WHERE id=?");
+        $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website, $instagram, $tiktok, $facebook, $whatsapp, empresa_serialize_contact_methods($medios_contacto), $logoFilename, $id]);
     } else {
-        $stmt = $pdo->prepare("UPDATE empresas SET nombre=?, descripcion=?, categoria_id=?, direccion=?, telefono=?, email=?, website=?, aprobada=0 WHERE id=?");
-        $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website, $id]);
+        $stmt = $pdo->prepare("UPDATE empresas SET nombre=?, descripcion=?, categoria_id=?, direccion=?, telefono=?, email=?, website=?, instagram=?, tiktok=?, facebook=?, whatsapp=?, medios_contacto_pedido=?, aprobada=0 WHERE id=?");
+        $stmt->execute([$nombre, $descripcion, $categoria_id, $direccion, $telefono, $email, $website, $instagram, $tiktok, $facebook, $whatsapp, empresa_serialize_contact_methods($medios_contacto), $id]);
     }
 
     if (!isset($base_url)) $base_url = '..';
@@ -76,10 +90,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 include '../templates/header.php';
+
+$mediosSeleccionados = empresa_deserialize_contact_methods($empresa['medios_contacto_pedido'] ?? '');
 ?>
 
 <h2>Editar Empresa</h2>
-<p class="text-warning">⚠️ Al editar, deberá ser aprobada nuevamente por el admin.</p>
+
+<div class="alert alert-info d-flex align-items-center gap-2">
+    <span>Estado Actual:</span>
+    <?php if($empresa['aprobada']): ?>
+        <span class="badge bg-success">✅ Publicada</span>
+    <?php else: ?>
+        <span class="badge bg-warning text-dark">🔄 En Revisión</span>
+    <?php endif; ?>
+</div>
+
+<div class="alert alert-warning">
+    <strong>Nota:</strong> Los cambios que realices aquí serán revisados nuevamente por el administrador antes de ser publicados.
+</div>
 
 <form method="POST" class="row g-3" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
@@ -116,6 +144,32 @@ include '../templates/header.php';
     <div class="col-md-6">
         <label class="form-label">Email</label>
         <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($empresa['email']) ?>">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Instagram</label>
+        <input type="text" name="instagram" class="form-control" value="<?= htmlspecialchars($empresa['instagram'] ?? '') ?>" placeholder="usuario o URL">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">TikTok</label>
+        <input type="text" name="tiktok" class="form-control" value="<?= htmlspecialchars($empresa['tiktok'] ?? '') ?>" placeholder="usuario o URL">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Facebook</label>
+        <input type="text" name="facebook" class="form-control" value="<?= htmlspecialchars($empresa['facebook'] ?? '') ?>" placeholder="pagina o URL">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">WhatsApp</label>
+        <input type="text" name="whatsapp" class="form-control" value="<?= htmlspecialchars($empresa['whatsapp'] ?? '') ?>" placeholder="+549123456789">
+    </div>
+    <div class="col-12">
+        <label class="form-label d-block">Medios de contacto para pedidos</label>
+        <?php foreach (empresa_contact_method_labels() as $valor => $etiqueta): ?>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="medios_contacto[]" value="<?= $valor ?>" id="medio_<?= $valor ?>" <?= in_array($valor, $mediosSeleccionados, true) ? 'checked' : '' ?>>
+                <label class="form-check-label" for="medio_<?= $valor ?>"><?= htmlspecialchars($etiqueta) ?></label>
+            </div>
+        <?php endforeach; ?>
+        <div class="form-text">El cliente solo podrá elegir entre estos medios al hacer un pedido.</div>
     </div>
     <div class="col-12">
         <div class="mb-3">
